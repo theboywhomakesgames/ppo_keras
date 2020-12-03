@@ -1,25 +1,26 @@
+from numpy.core.fromnumeric import shape
 import tensorflow as tf
 import numpy as np
 
-class actor(tf.Module):
+class actor(tf.keras.Model):
     def __init__(self):
         print("build actor")
         super(actor, self).__init__()
-        print("1")
         self.d1 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
-        print("2")
         self.d2 = tf.keras.layers.Dense(32, activation=tf.nn.relu)
-        print("mu")
         self.mu = tf.keras.layers.Dense(4, activation=tf.nn.tanh)
-        print("std")
         self.std = tf.keras.layers.Dense(4, activation=self.std_activation)
 
     def std_activation(self, input):
-        phase1 = tf.nn.tanh(input)
-        phase1 = (phase1 + 1) / 2
-        return phase1
+        phase1 = tf.nn.sigmoid(input)
+        phase2 = phase1 * 3 / 4
+        return phase2
 
-    def __call__(self, input):
+    def set_inputs(self, input):
+        input = np.array(input)
+        self._set_inputs(input.shape[0])
+
+    def call(self, input):
         inner = self.d1(input)
         inner = self.d2(inner)
         mu = self.mu(inner)

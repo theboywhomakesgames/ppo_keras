@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-class critic(tf.Module):
+class critic(tf.keras.Model):
     def __init__(self):
         print("build critic")
         super(critic, self).__init__()
@@ -13,7 +13,11 @@ class critic(tf.Module):
         inner = tf.nn.tanh(input / 2)
         return inner * 10
 
-    def __call__(self, input):
+    def set_inputs(self, input):
+        input = np.array(input)
+        self._set_inputs(input.shape[0])
+
+    def call(self, input):
         inner = self.d1(input)
         inner = self.d2(inner)
         v = self.v(inner)

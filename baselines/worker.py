@@ -1,4 +1,4 @@
-import gym
+from baselines.actor import actor
 from collections import deque
 import tensorflow as tf
 import numpy as np
@@ -6,16 +6,17 @@ from datetime import datetime
 from baselines.agent import agent
 
 class worker(object):
-    def __init__(self):
+    def __init__(self, env):
         self.agent = agent()
-        self.env = gym.make('BipedalWalker-v3')
         self.time_step = 0
         self.replay_buffer = deque(maxlen=50000)
-        self.learn_after = 10
-        self.reduce_after = 50
-        self.save_each = 2000
-        self.epochs = 10
-        self.episode_length = 1000
+        self.learn_after = 100
+        self.reduce_after = 100
+        self.last_best = -1e10
+        self.learn_each = 10
+        self.epochs = 32
+        self.episode_length = 200
+        self.env = env
 
     def set_up_logging(self):
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -23,16 +24,21 @@ class worker(object):
         self.writer = tf.summary.create_file_writer(logdir)
 
     def work(self):
+        observation = self.env.reset()
+
+        # self.agent.actor.set_inputs(observation)
+        # self.agent.critic.set_inputs(observation)
+        
         self.set_up_logging()
         for i_episode in range(1, 2000000):
             observation = self.env.reset()
             mini_batch = []
             acc_reward = 0
             for t in range(self.episode_length):
-                self.env.render()
                 action = self.agent.act(observation)
+                print(action)
                 p = self.agent.actor(np.array([observation]))
-                new_observation, reward, done, info = self.env.step(action)
+                new_observation, reward, done = self.env.step(action)
 
                 acc_reward += reward
                 value = self.agent.critic(np.array([observation]))
@@ -56,7 +62,7 @@ class worker(object):
                     self.reduce_after = 5
                 print("epsilon: " + str(self.agent.epsilon))
 
-            if i_episode > self.learn_after:
+            if i_episode > self.learn_after and i_episode % self.learn_each == 0:
                 c_loss = 0
                 a_loss = 0
 
@@ -80,22 +86,25 @@ class worker(object):
                     tf.summary.scalar("epsilon", self.agent.epsilon, step=self.time_step)
                 self.writer.flush()
 
-                self.epochs -= 1
-                if(self.epochs < 1):
-                    self.epochs = 1
+                if i_episode % self.reduce_after:
+                    self.epochs -= 1
+                    if(self.epochs < 10):
+                        self.epochs = 10
 
-                # self.episode_length += (500 / self.episode_length)
-                # self.episode_length = int(self.episode_length)
-                # if self.episode_length > 2000:
-                #     self.episode_length = 2000
+                if i_episode % 100 == 0:
+                    self.episode_length += (500 / self.episode_length)
+                    self.episode_length = int(self.episode_length)
+                    if self.episode_length > 2000:
+                        self.episode_length = 2000
 
-                self.learn_after -= (self.learn_after ** 2) / 600
-                self.learn_after = int(self.learn_after)
+                # self.learn_after -= (self.learn_after ** 2) / 600
+                # self.learn_after = int(self.learn_after)
 
-                if(self.learn_after < 10):
-                    self.learn_after = 10
+                # if(self.learn_after < 10):
+                #     self.learn_after = 10
 
-            if i_episode % self.save_each == 0:
-                self.agent.save()
+                if acc_reward > self.last_best:
+                    self.last_best = acc_reward
+                    self.agent.save()
 
         self.env.close()

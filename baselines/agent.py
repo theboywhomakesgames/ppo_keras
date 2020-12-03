@@ -6,14 +6,14 @@ from baselines.critic import critic
 
 class agent(object):
     def __init__(self):
-        self.a_opt = tf.keras.optimizers.Adam(learning_rate=7e-3)
-        self.c_opt = tf.keras.optimizers.Adam(learning_rate=7e-3)
+        self.a_opt = tf.keras.optimizers.Adam(learning_rate=3e-3)
+        self.c_opt = tf.keras.optimizers.Adam(learning_rate=3e-3)
         self.actor = actor()
         self.critic = critic()
         self.clip_param = 0.2
         self.gamma = 0.95
         self.landa = 0.8
-        self.epsilon = 1.0
+        self.epsilon = 0.1
         self.last_entropy = 100
 
         print(tf.__version__)
@@ -30,8 +30,23 @@ class agent(object):
             return action.numpy()[0]
 
     def save(self):
-        self.actor.save("./saved/actor/")
-        self.critic.save("./saved/critic/")
+        vars = self.actor.trainable_variables
+        savee = []
+        for var in vars:
+            savee.append(var.numpy().tolist())
+
+        f = open("actor_cp.save", "w")
+        f.write(str(savee))
+        f.close()
+
+        vars = self.critic.trainable_variables
+        savee = []
+        for var in vars:
+            savee.append(var.numpy().tolist())
+
+        f = open("critic_cp.save", "w")
+        f.write(str(savee))
+        f.close()
 
     # can be optimized
     def preprocess(self, mini_batch):
@@ -101,7 +116,7 @@ class agent(object):
         
         min = tf.math.minimum(sr1, sr2)
         mean = tf.reduce_mean(min)
-        loss = tf.math.negative(mean - closs + 0.001 * entropy)
+        loss = tf.math.negative(mean) - 0.1 * entropy
 
         if np.isnan(loss.numpy()).any() or np.isinf(loss.numpy()).any():
             print("nan")
