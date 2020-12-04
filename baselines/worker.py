@@ -9,9 +9,9 @@ class worker(object):
     def __init__(self, env):
         self.agent = agent()
         self.time_step = 0
-        self.replay_buffer = deque(maxlen=50000)
-        self.learn_after = 100
-        self.reduce_after = 100
+        self.replay_buffer = deque(maxlen=1200)
+        self.learn_after = 1200
+        self.reduce_after = 2000
         self.last_best = -1e10
         self.learn_each = 10
         self.epochs = 32
@@ -32,11 +32,16 @@ class worker(object):
         self.set_up_logging()
         for i_episode in range(1, 2000000):
             observation = self.env.reset()
+
+            # loading weights and biases
+            action = self.agent.actor(np.array([observation]))
+            value = self.agent.critic(np.array([observation]))
+            self.agent.load_wabs()
+
             mini_batch = []
             acc_reward = 0
             for t in range(self.episode_length):
                 action = self.agent.act(observation)
-                print(action)
                 p = self.agent.actor(np.array([observation]))
                 new_observation, reward, done = self.env.step(action)
 
@@ -53,16 +58,17 @@ class worker(object):
             self.replay_buffer.append(mini_batch)
 
             if i_episode % self.reduce_after == 0:
-                self.agent.epsilon *= 0.5
+                self.agent.reduce_learning_rate()
+                # self.reduce_after -= 10
+                # if self.reduce_after < 5:
+                #     self.reduce_after = 5
+                # print("epsilon: " + str(self.agent.epsilon))
+
+            if i_episode > self.learn_after and i_episode % self.learn_each == 0:
+                self.agent.epsilon *= 0
                 if(self.agent.epsilon < 1e-5):
                     self.agent.epsilon = 0
 
-                self.reduce_after -= 10
-                if self.reduce_after < 5:
-                    self.reduce_after = 5
-                print("epsilon: " + str(self.agent.epsilon))
-
-            if i_episode > self.learn_after and i_episode % self.learn_each == 0:
                 c_loss = 0
                 a_loss = 0
 
@@ -82,20 +88,19 @@ class worker(object):
                     tf.summary.scalar("eposide reward", acc_reward, step=self.time_step)
                     tf.summary.scalar("policy loss", a_loss, step=self.time_step)
                     tf.summary.scalar("value loss", c_loss, step=self.time_step)
-                    tf.summary.scalar("policy_entr", self.agent.last_entropy, step=self.time_step)
-                    tf.summary.scalar("epsilon", self.agent.epsilon, step=self.time_step)
+                    tf.summary.scalar("leaning rate", self.agent.learning_rate, step=self.time_step)
                 self.writer.flush()
 
-                if i_episode % self.reduce_after:
+                if i_episode % self.reduce_after == 0:
                     self.epochs -= 1
                     if(self.epochs < 10):
                         self.epochs = 10
 
-                if i_episode % 100 == 0:
-                    self.episode_length += (500 / self.episode_length)
-                    self.episode_length = int(self.episode_length)
-                    if self.episode_length > 2000:
-                        self.episode_length = 2000
+                # if i_episode % 100 == 0:
+                #     self.episode_length += (500 / self.episode_length)
+                #     self.episode_length = int(self.episode_length)
+                #     if self.episode_length > 2000:
+                #         self.episode_length = 2000
 
                 # self.learn_after -= (self.learn_after ** 2) / 600
                 # self.learn_after = int(self.learn_after)

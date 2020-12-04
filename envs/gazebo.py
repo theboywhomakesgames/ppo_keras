@@ -1,3 +1,4 @@
+from numpy.lib.function_base import quantile
 import rospy
 import numpy as np
 import tensorflow as tf
@@ -92,7 +93,9 @@ class GazeboEnv():
         # model_state.twist.linear.y = y
         # model_state.twist.linear.z = z
 
-        rot = self.rot_mat_from_quaternion(model_state.pose.orientation)
+        # rot = self.rot_mat_from_quaternion(model_state.pose.orientation)
+        quaternion = model_state.pose.orientation
+        euler = self.quaternion_to_euler_angle_vectorized1(quaternion.w, quaternion.x, quaternion.y, quaternion.z)
 
         self.lastState = [
             self.goal[0] - model_state.pose.position.x,
@@ -104,15 +107,9 @@ class GazeboEnv():
             model_state.twist.angular.x,
             model_state.twist.angular.y,
             model_state.twist.angular.z,
-            rot[0][0],
-            rot[0][1],
-            rot[0][2],
-            rot[1][0],
-            rot[1][1],
-            rot[1][2],
-            rot[2][0],
-            rot[2][1],
-            rot[2][2],
+            euler[0]/180,
+            euler[1]/180,
+            euler[2]/180,
             self.last_action[0],
             self.last_action[1],
             self.last_action[2],
@@ -124,7 +121,9 @@ class GazeboEnv():
     def model_state_cb(self, data):
         index = data.name.index('bebop')
 
-        rot = self.rot_mat_from_quaternion(data.pose[index].orientation)
+        # rot = self.rot_mat_from_quaternion(data.pose[index].orientation)
+        quaternion = data.pose[index].orientation
+        euler = self.quaternion_to_euler_angle_vectorized1(quaternion.w, quaternion.x, quaternion.y, quaternion.z)
 
         self.lastState = [
             self.goal[0] - data.pose[index].position.x,
@@ -136,15 +135,9 @@ class GazeboEnv():
             data.twist[index].angular.x,
             data.twist[index].angular.y,
             data.twist[index].angular.z,
-            rot[0][0],
-            rot[0][1],
-            rot[0][2],
-            rot[1][0],
-            rot[1][1],
-            rot[1][2],
-            rot[2][0],
-            rot[2][1],
-            rot[2][2],
+            euler[0]/180,
+            euler[1]/180,
+            euler[2]/180,
             self.last_action[0],
             self.last_action[1],
             self.last_action[2],
@@ -214,14 +207,16 @@ class GazeboEnv():
     def get_reward(self):
         [dx, dy, dz] = self.lastState[:3]
         [ax, ay, az, aw] = self.lastState[3:7]
+        [roll, pitch, yaw] = self.lastState[9:12]
 
         reward = 0
         dp = abs(dx) + abs(dy) + abs(dz)
         da = abs(ax) + abs(ay) + abs(az) + abs(aw)
+        dq = abs(roll) + abs(pitch) + abs(yaw)
         ac = abs(self.last_action[0]) + abs(self.last_action[1]) + abs(self.last_action[2]) + abs(self.last_action[3])
-        reward = -dp * 1e-2 - da * 1e-1 - ac * 1e-2 + 0.1
+        reward = -dp * 1e-1 - da * 1e-1 - ac * 1e-4 - dq * 1e-1 + 1
 
-        done = dp > 10 or da > 5.5
+        done = dp > 10 or da > 7 or dq > 0.7
         if done:
             reward = -1000.0
 

@@ -1,22 +1,32 @@
 import tensorflow as tf
 import numpy as np
+import json
 
 from baselines.actor import actor
 from baselines.critic import critic
 
 class agent(object):
     def __init__(self):
-        self.a_opt = tf.keras.optimizers.Adam(learning_rate=3e-3)
-        self.c_opt = tf.keras.optimizers.Adam(learning_rate=3e-3)
+        self.learning_rate = 1.0
+        self.a_opt = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
+        self.c_opt = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
         self.actor = actor()
         self.critic = critic()
         self.clip_param = 0.2
         self.gamma = 0.95
         self.landa = 0.8
-        self.epsilon = 0.1
+        self.epsilon = 1.0
         self.last_entropy = 100
 
         print(tf.__version__)
+
+    def reduce_learning_rate(self):
+        self.learning_rate *= 0.9
+        if(self.learning_rate < 1e-6):
+            self.learning_rate = 1e-6
+        
+        self.a_opt = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
+        self.c_opt = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)        
 
     def act(self, state):
         if np.random.uniform(size=1, low=0.0, high=1.0) < self.epsilon:
@@ -28,6 +38,37 @@ class agent(object):
             dist = tf.compat.v1.distributions.Normal(mu, std + 1e-10, True)
             action = dist.sample()
             return action.numpy()[0]
+
+    def load_wabs(self):
+        # load for actor
+        f = open('actor_cp2.save', 'r')
+        output = f.read()
+
+        output = json.loads(output)
+
+        wabs = []
+        for arr in output:
+            arr = np.array(arr)
+            wabs.append(arr)
+
+        self.actor.set_weights(wabs)
+
+        f.close()
+
+        # load for critic
+        f = open('critic_cp2.save', 'r')
+        output = f.read()
+
+        output = json.loads(output)
+
+        wabs = []
+        for arr in output:
+            arr = np.array(arr)
+            wabs.append(arr)
+
+        self.critic.set_weights(wabs)
+
+        f.close()
 
     def save(self):
         vars = self.actor.trainable_variables
