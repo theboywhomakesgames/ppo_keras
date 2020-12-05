@@ -5,8 +5,8 @@ class critic(tf.keras.Model):
     def __init__(self):
         print("build critic")
         super(critic, self).__init__()
-        self.d1 = tf.keras.layers.Dense(64, activation=tf.nn.relu)
-        self.d2 = tf.keras.layers.Dense(64, activation=tf.nn.relu)
+        self.d1 = tf.keras.layers.Dense(128, activation=tf.nn.relu)
+        self.d2 = tf.keras.layers.Dense(128, activation=tf.nn.relu)
         self.v = tf.keras.layers.Dense(1)
 
     def custom_activation(self, input):

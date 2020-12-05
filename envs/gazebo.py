@@ -212,11 +212,11 @@ class GazeboEnv():
         reward = 0
         dp = abs(dx) + abs(dy) + abs(dz)
         da = abs(ax) + abs(ay) + abs(az) + abs(aw)
-        dq = abs(roll) + abs(pitch) + abs(yaw)
+        dq = abs(roll) + abs(pitch)
         ac = abs(self.last_action[0]) + abs(self.last_action[1]) + abs(self.last_action[2]) + abs(self.last_action[3])
         reward = -dp * 1e-1 - da * 1e-1 - ac * 1e-4 - dq * 1e-1 + 1
 
-        done = dp > 10 or da > 7 or dq > 0.7
+        done = dp > 10 or da > 8 or dq > 0.7 or dz > 0.05
         if done:
             reward = -1000.0
 

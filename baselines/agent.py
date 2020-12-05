@@ -7,7 +7,7 @@ from baselines.critic import critic
 
 class agent(object):
     def __init__(self):
-        self.learning_rate = 1.0
+        self.learning_rate = 1
         self.a_opt = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
         self.c_opt = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
         self.actor = actor()
@@ -15,7 +15,7 @@ class agent(object):
         self.clip_param = 0.2
         self.gamma = 0.95
         self.landa = 0.8
-        self.epsilon = 1.0
+        self.epsilon = 0.2
         self.last_entropy = 100
 
         print(tf.__version__)
@@ -103,10 +103,10 @@ class agent(object):
         size = len(mini_batch)
         idx = size - 1
         for el in mini_batch[::-1]:
-            next_val = mini_batch[idx + 1][1] if idx < size - 1 else 0
+            next_val = mini_batch[idx + 1][1] if idx < size - 1 else tf.constant([[0.0]])
             delta = el[3] + self.gamma * next_val - el[1]
             advs.append(delta)
-            g = el[3] + self.gamma * g
+            g = el[3] + self.gamma * (next_val.numpy()[0][0])
 
             states.append(el[0])
             values.append(el[1])
